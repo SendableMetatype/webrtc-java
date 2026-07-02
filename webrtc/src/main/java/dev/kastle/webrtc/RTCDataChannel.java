@@ -175,4 +175,44 @@ public class RTCDataChannel extends DisposableNativeObject {
 
 	private native void sendByteArrayBuffer(byte[] buffer, boolean binary);
 
+	/**
+	 * Sends data in the provided buffer to the remote peer without blocking
+	 * the calling thread on the native network thread, unlike
+	 * {@link #send(RTCDataChannelBuffer)} whose call is marshalled
+	 * synchronously. The data is copied out of the buffer before this method
+	 * returns, so the buffer may be reused immediately; for direct buffers
+	 * only the bytes between position and limit are sent (the blocking send
+	 * transmits the full capacity of a direct buffer instead).
+	 *
+	 * Errors are reported asynchronously: queueing failures are logged
+	 * natively, and fatal errors close the data channel, which the registered
+	 * {@link RTCDataChannelObserver} sees as a state change.
+	 *
+	 * @param buffer The buffer to be queued for transmission.
+	 */
+	public void sendAsync(RTCDataChannelBuffer buffer) {
+		ByteBuffer data = buffer.data;
+
+		if (data.isDirect()) {
+			sendDirectBufferAsync(data, data.position(), data.remaining(), buffer.binary);
+		}
+		else {
+			byte[] arrayBuffer;
+
+			if (data.hasArray()) {
+				arrayBuffer = data.array();
+			}
+			else {
+				arrayBuffer = new byte[data.remaining()];
+				data.get(arrayBuffer);
+			}
+
+			sendByteArrayBufferAsync(arrayBuffer, buffer.binary);
+		}
+	}
+
+	private native void sendDirectBufferAsync(ByteBuffer buffer, int position, int length, boolean binary);
+
+	private native void sendByteArrayBufferAsync(byte[] buffer, boolean binary);
+
 }
